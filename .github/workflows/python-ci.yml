@@ -99,11 +99,17 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     outputs:
-      # Pass the SHA tag downstream so Jenkins knows exactly which image to deploy
-      image-tag: ${{ steps.meta.outputs.version }}
+      # Pass the SHA tag downstream so Jenkins knows exactly which image to deploy.
+      # We construct it directly from github.sha (first 7 chars) to match the
+      # sha-<short> tag that docker/metadata-action pushes to Docker Hub.
+      image-tag: ${{ steps.sha.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set short SHA tag
+        id: sha
+        run: echo "tag=sha-$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
 
       - name: Extract image metadata
         id: meta
