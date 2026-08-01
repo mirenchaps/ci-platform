@@ -67,5 +67,15 @@ resource "docker_container" "app" {
     }
   }
 
+  # Mount an SSH private key from the host into the container if provided.
+  dynamic "volumes" {
+    for_each = var.ssh_key_path != "" ? [1] : []
+    content {
+      host_path      = var.ssh_key_path
+      container_path = "/app/id_ed25519"
+      read_only      = true
+    }
+  }
+
   restart = "on-failure"
 }

@@ -39,3 +39,9 @@ variable "config_file_path" {
   type        = string
   default     = ""
 }
+
+variable "ssh_key_path" {
+  description = "Optional host path to an SSH private key to mount at /app/id_ed25519 inside the container"
+  type        = string
+  default     = ""
+}

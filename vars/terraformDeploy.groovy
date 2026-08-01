@@ -20,6 +20,7 @@ def call(Map config = [:]) {
     def port           = config.port           ?: 8000
     def appName        = config.appName        ?: env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')
     def configFilePath = config.configFilePath ?: ''
+    def sshKeyPath     = config.sshKeyPath     ?: ''
 
     // Dynamically locate the terraform module within the library checkout.
     // Jenkins may use a hash-based path under @libs rather than the library name,
@@ -47,6 +48,7 @@ def call(Map config = [:]) {
                   -var="image_tag=${imageTag}" \\
                   -var="host_port=${port}" \\
                   -var="config_file_path=${configFilePath}" \\
+                  -var="ssh_key_path=${sshKeyPath}" \\
                   -out=tfplan \\
                   -input=false
             """
