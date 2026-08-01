@@ -55,9 +55,6 @@ def call(Map config = [:]) {
 
     stage('Terraform Apply') {
         dir(tfDir) {
-            // input() pauses the pipeline and waits for a human to click Proceed.
-            // Remove this block if you want fully automated deploys.
-            input message: "Deploy image ${imageTag} to port ${port}?", ok: 'Deploy'
             sh 'terraform apply -input=false tfplan'
         }
     }
