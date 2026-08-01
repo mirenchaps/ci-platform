@@ -22,13 +22,17 @@ def call(Map config = [:]) {
     // env.JOB_NAME is always available in a Jenkins pipeline run.
     def appName  = config.appName  ?: env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')
 
-    // Jenkins checks out shared libraries under <WORKSPACE>@libs/<library-name>.
-    // The exact parent path varies by Jenkins version and config, so we derive it
-    // from WORKSPACE which is always set by Jenkins for the current job.
-    // Docs: https://www.jenkins.io/doc/book/pipeline/shared-libraries/#directory-structure
-    def tfDir = "${env.WORKSPACE}@libs/ci-platform/terraform/modules/docker-app"
-    // If the above path is wrong on your Jenkins, check the actual checkout location with:
-    //   sh 'find $WORKSPACE/.. -name "main.tf" 2>/dev/null | head -5'
+    // Dynamically locate the terraform module within the library checkout.
+    // Jenkins may use a hash-based path under @libs rather than the library name,
+    // so we find main.tf rather than hardcoding the path.
+    def tfDir = sh(
+        script: "find '${env.WORKSPACE}@libs' -name 'main.tf' -path '*/docker-app*' -exec dirname {} \\; 2>/dev/null | head -1",
+        returnStdout: true
+    ).trim()
+
+    if (!tfDir) {
+        error('terraformDeploy: could not find docker-app terraform module — is ci-platform library checked out?')
+    }
 
     stage('Terraform Init') {
         dir(tfDir) {
