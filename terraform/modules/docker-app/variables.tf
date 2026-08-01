@@ -33,3 +33,9 @@ variable "env_vars" {
   type        = map(string)
   default     = {}
 }
+
+variable "config_file_path" {
+  description = "Optional host path to a config file to mount at /app/config.json inside the container"
+  type        = string
+  default     = ""
+}

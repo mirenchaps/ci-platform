@@ -16,11 +16,10 @@
 //   Global vars live in vars/ — each .groovy file becomes a callable step.
 
 def call(Map config = [:]) {
-    def imageTag = config.imageTag ?: error('terraformDeploy: imageTag is required')
-    def port     = config.port     ?: 8000
-    // app_name defaults to the Jenkins job name if not explicitly set —
-    // env.JOB_NAME is always available in a Jenkins pipeline run.
-    def appName  = config.appName  ?: env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')
+    def imageTag       = config.imageTag       ?: error('terraformDeploy: imageTag is required')
+    def port           = config.port           ?: 8000
+    def appName        = config.appName        ?: env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')
+    def configFilePath = config.configFilePath ?: ''
 
     // Dynamically locate the terraform module within the library checkout.
     // Jenkins may use a hash-based path under @libs rather than the library name,
@@ -47,6 +46,7 @@ def call(Map config = [:]) {
                   -var="app_name=${appName}" \\
                   -var="image_tag=${imageTag}" \\
                   -var="host_port=${port}" \\
+                  -var="config_file_path=${configFilePath}" \\
                   -out=tfplan \\
                   -input=false
             """

@@ -57,7 +57,15 @@ resource "docker_container" "app" {
   # If env_vars is empty the list comprehension produces [] and no vars are set.
   env = [for k, v in var.env_vars : "${k}=${v}"]
 
-  # Restart automatically if the container crashes — mirrors a basic
-  # systemd Restart=on-failure policy.
+  # Mount a config file from the host into the container if provided.
+  dynamic "volumes" {
+    for_each = var.config_file_path != "" ? [1] : []
+    content {
+      host_path      = var.config_file_path
+      container_path = "/app/config.json"
+      read_only      = true
+    }
+  }
+
   restart = "on-failure"
 }
