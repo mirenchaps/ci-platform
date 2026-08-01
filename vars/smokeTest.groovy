@@ -24,9 +24,9 @@ def call(Map config = [:]) {
         // --retry 5 --retry-delay 3 → retry up to 5 times (container may still be starting)
         sh """
             curl -fsSL \\
-              --retry 5 \\
+              --retry 10 \\
               --retry-delay 3 \\
-              --retry-connrefused \\
+              --retry-all-errors \\
               '${url}' > /dev/null
         """
         echo "Smoke test passed: ${url} returned 200"
