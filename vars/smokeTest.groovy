@@ -15,7 +15,7 @@
 def call(Map config = [:]) {
     def path  = config.path  ?: '/healthz'
     def port  = config.port  ?: 8000
-    def host  = config.host  ?: 'localhost'
+    def host  = config.host  ?: '127.0.0.1'
     def url   = "http://${host}:${port}${path}"
 
     stage('Smoke Test') {
