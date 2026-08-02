@@ -21,6 +21,9 @@ def call(Map config = [:]) {
     def appName        = config.appName        ?: env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')
     def configFilePath = config.configFilePath ?: ''
     def sshKeyPath     = config.sshKeyPath     ?: ''
+    // envVars is a map of extra environment variables to inject into the container,
+    // e.g. [WINRM_USERNAME: 'mcp-reader', WINRM_PASSWORD: 'secret']
+    def envVars        = config.envVars        ?: [:]
 
     // Dynamically locate the terraform module within the library checkout.
     // Jenkins may use a hash-based path under @libs rather than the library name,
@@ -42,6 +45,8 @@ def call(Map config = [:]) {
 
     stage('Terraform Plan') {
         dir(tfDir) {
+            // Encode envVars map as JSON for the Terraform -var flag
+            def envVarsJson = groovy.json.JsonOutput.toJson(envVars)
             sh """
                 terraform plan \\
                   -var="app_name=${appName}" \\
@@ -49,6 +54,7 @@ def call(Map config = [:]) {
                   -var="host_port=${port}" \\
                   -var="config_file_path=${configFilePath}" \\
                   -var="ssh_key_path=${sshKeyPath}" \\
+                  -var='env_vars=${envVarsJson}' \\
                   -out=tfplan \\
                   -input=false
             """
