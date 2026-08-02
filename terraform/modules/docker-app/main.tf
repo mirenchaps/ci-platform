@@ -22,6 +22,15 @@ terraform {
   }
 }
 
+# Point at the Docker socket proxy instead of the raw socket.
+# The proxy (tecnativa/docker-socket-proxy) allows only the API calls Terraform
+# needs — pull images, create/destroy containers and networks — and blocks
+# everything else (exec, build, privileged run).
+# Docs: https://github.com/Tecnativa/docker-socket-proxy
+provider "docker" {
+  host = "tcp://127.0.0.1:2375"
+}
+
 # Pull the image before creating the container so Terraform tracks it as a resource.
 # If the tag doesn't exist in the registry, this step will fail loudly — which is
 # the right behaviour (fail fast rather than running a stale image).
