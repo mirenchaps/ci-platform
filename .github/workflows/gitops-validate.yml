@@ -73,18 +73,34 @@ jobs:
         env:
           PROMETHEUS_RULE_PATHS: ${{ inputs.prometheus-rule-paths }}
         run: |
+          if [ -z "$PROMETHEUS_RULE_PATHS" ]; then
+            echo "No Prometheus rule paths supplied"
+            exit 0
+          fi
+          python3 -m pip install --quiet pyyaml
+          mkdir -p /tmp/promrules
           while IFS= read -r path; do
             [ -z "$path" ] && continue
             if [ -d "$path" ]; then
-              mapfile -t rules < <(find "$path" -type f \( -name '*.yaml' -o -name '*.yml' \))
+              mapfile -t files < <(find "$path" -type f \( -name '*.yaml' -o -name '*.yml' \))
             else
-              rules=("$path")
+              files=("$path")
             fi
-            for rule in "${rules[@]}"; do
-              docker run --rm -v "$PWD":/work -w /work prom/prometheus:v3.5.0 \
-                promtool check rules "$rule"
+            for file in "${files[@]}"; do
+              # Rules ship as PrometheusRule CRDs, so promtool needs spec.groups lifted out.
+              python3 -c '
+          import sys, yaml
+          document = yaml.safe_load(open(sys.argv[1])) or {}
+          groups = document.get("spec", document).get("groups", [])
+          yaml.safe_dump({"groups": groups}, open(sys.argv[2], "w"))
+          ' "$file" "/tmp/promrules/$(echo "$file" | tr '/' '_')"
             done
           done <<< "$PROMETHEUS_RULE_PATHS"
+          for rule in /tmp/promrules/*; do
+            echo "Checking $rule"
+            docker run --rm --entrypoint promtool -v /tmp/promrules:/rules \
+              prom/prometheus:v3.5.0 check rules "/rules/$(basename "$rule")"
+          done
 
       - name: Scan configuration
         uses: aquasecurity/trivy-action@v0.36.0
