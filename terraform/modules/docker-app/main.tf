@@ -35,7 +35,7 @@ provider "docker" {
 # If the tag doesn't exist in the registry, this step will fail loudly — which is
 # the right behaviour (fail fast rather than running a stale image).
 resource "docker_image" "app" {
-  name         = var.image_tag
+  name = var.image_tag
   # force_remove = true means Terraform removes the old image on destroy,
   # keeping the host clean after repeated deployments.
   force_remove = true
