@@ -1,0 +1,15 @@
+version: 2
+
+# Actions are pinned to commit SHAs for supply-chain safety, so they need
+# automated bumps to avoid silently running unmaintained versions.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
