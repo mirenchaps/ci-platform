@@ -36,6 +36,8 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Commenting needs pull-requests:write, which this workflow deliberately does not grant.
+          GITLEAKS_ENABLE_COMMENTS: "false"
 
   validate:
     name: GitOps validation
