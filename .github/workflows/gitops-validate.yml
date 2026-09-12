@@ -26,9 +26,6 @@ jobs:
   gitleaks:
     name: Secret scan
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -36,11 +33,10 @@ jobs:
           fetch-depth: 0
 
       - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Commenting needs pull-requests:write, which this workflow deliberately does not grant.
-          GITLEAKS_ENABLE_COMMENTS: "false"
+        # Run the scanner directly: the action needs API access that callers cannot grant.
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 \
+            detect --source=/repo --redact --no-banner
 
   validate:
     name: GitOps validation
