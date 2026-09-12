@@ -1,0 +1,75 @@
+name: Python publish
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: Docker Hub image name without the registry namespace
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+      JENKINS_URL:
+        required: true
+      JENKINS_USER:
+        required: true
+      JENKINS_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and push
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.sha.outputs.tag }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: sha
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image-name }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  trigger-jenkins:
+    name: Trigger Jenkins deploy
+    runs-on: self-hosted
+    needs: build-and-push
+    steps:
+      - name: Trigger Jenkins pipeline
+        run: |
+          crumb=$(curl -fsSL "${{ secrets.JENKINS_URL }}/crumbIssuer/api/json" \
+            --user "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_TOKEN }}" \
+            | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['crumbRequestField']+':'+data['crumb'])")
+          curl -fsSL -X POST "${{ secrets.JENKINS_URL }}/job/${{ inputs.image-name }}/buildWithParameters" \
+            --user "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_TOKEN }}" \
+            -H "$crumb" \
+            --data "IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}"

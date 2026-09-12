@@ -1,0 +1,95 @@
+name: GitOps validation
+
+on:
+  workflow_call:
+    inputs:
+      helm-charts:
+        description: Newline-delimited local Helm chart directories
+        required: false
+        default: ""
+        type: string
+      kustomize-roots:
+        description: Newline-delimited Kustomize root directories
+        required: false
+        default: ""
+        type: string
+      prometheus-rule-paths:
+        description: Newline-delimited Prometheus rule files
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  validate:
+    name: GitOps validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Set up Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Lint and render Helm charts
+        env:
+          HELM_CHARTS: ${{ inputs.helm-charts }}
+        run: |
+          while IFS= read -r chart; do
+            [ -z "$chart" ] && continue
+            helm lint "$chart"
+            helm template "$(basename "$chart")" "$chart" >/dev/null
+          done <<< "$HELM_CHARTS"
+
+      - name: Render Kustomize roots
+        env:
+          KUSTOMIZE_ROOTS: ${{ inputs.kustomize-roots }}
+        run: |
+          while IFS= read -r root; do
+            [ -z "$root" ] && continue
+            kustomize build --enable-helm "$root" >/dev/null
+          done <<< "$KUSTOMIZE_ROOTS"
+
+      - name: Check Prometheus rules
+        env:
+          PROMETHEUS_RULE_PATHS: ${{ inputs.prometheus-rule-paths }}
+        run: |
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            if [ -d "$path" ]; then
+              mapfile -t rules < <(find "$path" -type f \( -name '*.yaml' -o -name '*.yml' \))
+            else
+              rules=("$path")
+            fi
+            for rule in "${rules[@]}"; do
+              docker run --rm -v "$PWD":/work -w /work prom/prometheus:v3.5.0 \
+                promtool check rules "$rule"
+            done
+          done <<< "$PROMETHEUS_RULE_PATHS"
+
+      - name: Scan configuration
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "0"

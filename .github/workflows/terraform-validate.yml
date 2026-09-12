@@ -1,0 +1,67 @@
+name: Terraform validation
+
+on:
+  workflow_call:
+    inputs:
+      terraform-version:
+        description: Terraform version used to run validation
+        required: false
+        default: "1.9.8"
+        type: string
+      roots:
+        description: Newline-delimited Terraform root directories
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  terraform:
+    name: Terraform validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize and validate roots
+        env:
+          TERRAFORM_ROOTS: ${{ inputs.roots }}
+        run: |
+          while IFS= read -r root; do
+            [ -z "$root" ] && continue
+            echo "Validating $root"
+            terraform -chdir="$root" init -backend=false -input=false
+            terraform -chdir="$root" validate
+          done <<< "$TERRAFORM_ROOTS"
+
+      - name: Scan Terraform configuration
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "0"
