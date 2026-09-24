@@ -58,13 +58,13 @@ jobs:
           cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: ./node_modules/.bin/tsc --noEmit
 
       - name: Lint
-        run: npx eslint ${{ inputs.lint-paths }} --quiet
+        run: ./node_modules/.bin/eslint ${{ inputs.lint-paths }} --quiet
 
       - name: Tests
         run: npm test -- --run
